@@ -44,6 +44,18 @@ int main(int argc, char **argv) {
         if (strncmp("--no-fbset", *argv, 10) == 0) {
             do_call_fbset=0;
         }
+        if (strncmp("--off", *argv, 5) == 0) {
+            tvservice_init();
+            trigger_off();
+            // We call fbset when turning off so that when turning back on the console will reappear
+            if (do_call_fbset) {
+                tvstate = (TV_GET_STATE_RESP_T*) calloc(1, sizeof(TV_GET_STATE_RESP_T));
+                tvstate->width = 10;
+                tvstate->height = 10;
+                call_fbset(tvstate);
+            }
+            goto cleanup;
+        }
 		if (strncmp("--sdtv", *argv, 6) == 0) {
             if (argc>=1) {
                 if (strncmp("NTSC", *(argv+1), 4) == 0) {
@@ -135,7 +147,8 @@ Usage: %s [OPTION]...\n\
 \t--status \t\t: print current resolution / and output device\n\
 \t--no-fbset \t\t: don't call fbset to reset the framebuffer\n\
 \t--sdtv [mode] [aspect]\t: switch output to sdtv\n\
-\t--hdmi [group] [mode] \t: switch output to hdmi with the specified mode and type,\n\t\t\t\t  otherwise defaults to the monitor's preferred mode\n\n", executable_name);
+\t--hdmi [group] [mode] \t: switch output to hdmi with the specified mode and type,\n\t\t\t\t  otherwise defaults to the monitor's preferred mode\n\
+\t--off \t\t: turn output off\n\n", executable_name);
 }
 
 void print_version() {
@@ -199,6 +212,15 @@ TV_GET_STATE_RESP_T* get_state(BOOL print_to_screen) {
         printf("\n");
     }
     return tvstate;
+}
+
+void trigger_off() {
+    if (vc_tv_power_off() != 0) {
+        fprintf(stderr, "failed to turn on off output: error code %i\n", result);
+        exit(-5);
+    } else {
+        printf("output turned off successfully\n");
+    }
 }
 
 void trigger_sdtv_output(SDTV_MODE_T mode, SDTV_ASPECT_T aspect) {
